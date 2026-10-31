@@ -9,6 +9,7 @@ import {
   loadSavedState,
   parseNonNegativeDecimal,
   saveState,
+  startCalculator,
 } from '../app.js';
 
 class FakeClassList {
@@ -261,4 +262,19 @@ test('state edits save and reset clears values, results, storage, and purity', (
   assert.equal(document.purityButtons[1].classList.contains('is-selected'), true);
   assert.equal(document.elements.total.textContent, '—');
   assert.equal(storage.length, 0);
+});
+
+test('startup remains usable when reading the localStorage property throws', () => {
+  const document = createFakeDocument();
+  const windowObject = {
+    isSecureContext: false,
+    get localStorage() {
+      throw new DOMException('Blocked', 'SecurityError');
+    },
+  };
+
+  assert.doesNotThrow(() => startCalculator(document, windowObject, {}));
+  assert.equal(document.elements.total.textContent, '—');
+  document.elements['gold-price'].value = '375';
+  assert.doesNotThrow(() => document.elements['gold-price'].dispatch('input'));
 });

@@ -12,7 +12,12 @@ function pngDimensions(buffer) {
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
 }
 
-async function loadWorkerHarness({ cacheKeys = [], cachedIndex = null, fetchResult = null } = {}) {
+async function loadWorkerHarness({
+  cacheKeys = [],
+  cachedIndex = null,
+  fetchResult = null,
+  scope = 'https://example.test/repository/',
+} = {}) {
   const source = await readFile(new URL('../service-worker.js', import.meta.url), 'utf8');
   const listeners = new Map();
   const deleted = [];
@@ -42,8 +47,8 @@ async function loadWorkerHarness({ cacheKeys = [], cachedIndex = null, fetchResu
     },
   };
   const self = {
-    location: new URL('https://example.test/repository/service-worker.js'),
-    registration: { scope: 'https://example.test/repository/' },
+    location: new URL('service-worker.js', scope),
+    registration: { scope },
     clients: { async claim() {} },
     skipWaiting() {},
     addEventListener(type, handler) {
@@ -121,13 +126,34 @@ test('service worker precaches only project-relative application-shell URLs', as
 
 test('service worker activation deletes only older calculator caches', async () => {
   const harness = await loadWorkerHarness({
-    cacheKeys: ['uae-gold-calculator-v0', 'uae-gold-calculator-v1', 'another-app-v1'],
+    cacheKeys: [
+      'uae-gold-calculator-%2Frepository%2F-v0',
+      'uae-gold-calculator-%2Frepository%2F-v1',
+      'uae-gold-calculator-%2Fother-project%2F-v0',
+      'another-app-v1',
+    ],
   });
   let work;
   harness.listeners.get('activate')({ waitUntil(promise) { work = promise; } });
   await work;
 
-  assert.deepEqual(harness.deleted, ['uae-gold-calculator-v0']);
+  assert.deepEqual(harness.deleted, ['uae-gold-calculator-%2Frepository%2F-v0']);
+});
+
+test('service worker cache cleanup is isolated between project scopes', async () => {
+  const harness = await loadWorkerHarness({
+    scope: 'https://example.test/second-repository/',
+    cacheKeys: [
+      'uae-gold-calculator-%2Frepository%2F-v0',
+      'uae-gold-calculator-%2Fsecond-repository%2F-v0',
+      'uae-gold-calculator-%2Fsecond-repository%2F-v1',
+    ],
+  });
+  let work;
+  harness.listeners.get('activate')({ waitUntil(promise) { work = promise; } });
+  await work;
+
+  assert.deepEqual(harness.deleted, ['uae-gold-calculator-%2Fsecond-repository%2F-v0']);
 });
 
 test('service worker returns cached index when offline navigation fails', async () => {

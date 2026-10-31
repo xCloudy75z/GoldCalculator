@@ -1,4 +1,5 @@
-const CACHE_PREFIX = 'uae-gold-calculator-';
+const CACHE_SCOPE = encodeURIComponent(new URL(self.registration.scope).pathname);
+const CACHE_PREFIX = `uae-gold-calculator-${CACHE_SCOPE}-`;
 const CACHE_NAME = `${CACHE_PREFIX}v1`;
 const APP_SHELL = [
   './',

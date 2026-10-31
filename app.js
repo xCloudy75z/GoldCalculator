@@ -163,12 +163,24 @@ export function initializeCalculator(documentRoot, storage) {
   render();
 }
 
+export function startCalculator(documentRoot, windowObject, navigatorObject) {
+  let storage;
+  try {
+    storage = windowObject.localStorage;
+  } catch {
+    storage = undefined;
+  }
+
+  initializeCalculator(documentRoot, storage);
+
+  if ('serviceWorker' in navigatorObject && windowObject.isSecureContext) {
+    navigatorObject.serviceWorker.register('./service-worker.js').catch(() => {});
+  }
+}
+
 if (typeof document !== 'undefined') {
   const start = () => {
-    initializeCalculator(document, window.localStorage);
-    if ('serviceWorker' in navigator && window.isSecureContext) {
-      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-    }
+    startCalculator(document, window, navigator);
   };
 
   if (document.readyState === 'loading') {
